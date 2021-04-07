@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rancher/lasso/pkg/log"
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -167,8 +168,8 @@ func (c *controller) processNextWorkItem() bool {
 	}
 
 	if key, ok := obj.(string); ok {
-		if !strings.Contains(key, "/") {
-			log.Infof("ProcessSingleItem cluster key %s", key)
+		if strings.HasPrefix(key, "c-") {
+			logrus.Infof("ProcessSingleItem cluster key %s", key)
 		}
 	}
 
@@ -237,7 +238,7 @@ func (c *controller) Enqueue(namespace, name string) {
 		c.startKeys = append(c.startKeys, startKey{key: key})
 	} else {
 		if namespace == "" {
-			log.Infof("LassoController adding AddRateLimited key %s", key)
+			logrus.Debugf("LassoController adding AddRateLimited key %s", key)
 		}
 		c.workqueue.AddRateLimited(key)
 	}
