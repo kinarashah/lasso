@@ -166,6 +166,12 @@ func (c *controller) processNextWorkItem() bool {
 		return false
 	}
 
+	if key, ok := obj.(string); ok {
+		if !strings.Contains(key, "/") {
+			log.Infof("ProcessSingleItem cluster key %s", key)
+		}
+	}
+
 	if err := c.processSingleItem(obj); err != nil {
 		if !strings.Contains(err.Error(), "please apply your changes to the latest version and try again") {
 			log.Errorf("%v", err)
@@ -230,6 +236,9 @@ func (c *controller) Enqueue(namespace, name string) {
 	if c.workqueue == nil {
 		c.startKeys = append(c.startKeys, startKey{key: key})
 	} else {
+		if namespace == "" {
+			log.Infof("LassoController adding AddRateLimited key %s", key)
+		}
 		c.workqueue.AddRateLimited(key)
 	}
 }
