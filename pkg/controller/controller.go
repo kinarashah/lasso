@@ -204,19 +204,9 @@ func (c *controller) processSingleItem(obj interface{}) error {
 		log.Errorf("expected string in workqueue but got %#v", obj)
 		return nil
 	}
-
 	if err := c.syncHandler(key); err != nil {
-		if strings.HasPrefix(key, "c-") {
-			log.Errorf("processSingleItemSyncHandler item %s err %v", key, err)
-		}
-		if _, ok := err.(*ForgetError); err == nil || ok {
-			if strings.HasPrefix(key, "c-") {
-				logrus.Infof("processSingleItemForgetError %v completed with dropped err: %v", key, err)
-			}
-		} else {
-			c.workqueue.AddRateLimited(key)
-			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
-		}
+		c.workqueue.AddRateLimited(key)
+		return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
 	}
 
 	c.workqueue.Forget(obj)
