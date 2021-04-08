@@ -61,7 +61,7 @@ type Options struct {
 }
 
 func New(name string, informer cache.SharedIndexInformer, startCache func(context.Context) error, handler Handler, opts *Options) Controller {
-	logrus.Infof("NewLassoController: name: %s", name)
+	logrus.Tracef("NewLassoController: name: %s", name)
 	opts = applyDefaultOptions(opts)
 
 	controller := &controller{
@@ -95,7 +95,7 @@ func applyDefaultOptions(opts *Options) *Options {
 			// 10 qps, 100 bucket size.  This is only for retry speed and its only the overall factor (not per item)
 			&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(20), 200)},
 		)
-		logrus.Infof("NewLassoController initializing DefaultOptions")
+		logrus.Trace("NewLassoController initializing DefaultOptions")
 	}
 	return &newOpts
 }
@@ -205,6 +205,9 @@ func (c *controller) processSingleItem(obj interface{}) error {
 		return nil
 	}
 	if err := c.syncHandler(key); err != nil {
+		if strings.HasPrefix(key, "c-") {
+			logrus.Infof("AddRateLimited call for %s because of err [%v]", key, err)
+		}
 		c.workqueue.AddRateLimited(key)
 		return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
 	}
@@ -232,6 +235,9 @@ func (c *controller) EnqueueKey(key string) {
 	if c.workqueue == nil {
 		c.startKeys = append(c.startKeys, startKey{key: key})
 	} else {
+		if strings.HasPrefix(key, "c-") {
+			logrus.Infof("AddRateLimited call for %s because EnqueueKey", key)
+		}
 		c.workqueue.AddRateLimited(key)
 	}
 }
@@ -245,8 +251,8 @@ func (c *controller) Enqueue(namespace, name string) {
 	if c.workqueue == nil {
 		c.startKeys = append(c.startKeys, startKey{key: key})
 	} else {
-		if namespace == "" {
-			logrus.Debugf("LassoController adding AddRateLimited key %s", key)
+		if namespace == "" && strings.HasPrefix(key, "c-") {
+			logrus.Infof("AddRateLimited call for %s because Enqueue()", key)
 		}
 		c.workqueue.AddRateLimited(key)
 	}
