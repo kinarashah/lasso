@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rancher/lasso/pkg/log"
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,6 +17,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
+
+var clusterEnqueueCount = 0
 
 type Handler interface {
 	OnChange(key string, obj runtime.Object) error
@@ -59,6 +62,7 @@ type Options struct {
 }
 
 func New(name string, informer cache.SharedIndexInformer, startCache func(context.Context) error, handler Handler, opts *Options) Controller {
+	logrus.Tracef("NewLassoController: name: %s", name)
 	opts = applyDefaultOptions(opts)
 
 	controller := &controller{
@@ -90,6 +94,9 @@ func applyDefaultOptions(opts *Options) *Options {
 			workqueue.NewItemFastSlowRateLimiter(time.Millisecond, 2*time.Minute, 30),
 			workqueue.NewItemExponentialFailureRateLimiter(5*time.Millisecond, 30*time.Second),
 		)
+		logrus.Trace("NewLassoController initializing DefaultOptions")
+	} else {
+		log.Infof("***Custom rate limiter used")
 	}
 	return &newOpts
 }
@@ -193,6 +200,9 @@ func (c *controller) processSingleItem(obj interface{}) error {
 		return nil
 	}
 	if err := c.syncHandler(key); err != nil {
+		if strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
+			logrus.Infof("AddRateLimited call for %s because of err [%v]", key, err)
+		}
 		c.workqueue.AddRateLimited(key)
 		return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
 	}
@@ -220,6 +230,9 @@ func (c *controller) EnqueueKey(key string) {
 	if c.workqueue == nil {
 		c.startKeys = append(c.startKeys, startKey{key: key})
 	} else {
+		if strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
+			//logrus.Infof("AddRateLimited call for %s because EnqueueKey", key)
+		}
 		c.workqueue.Add(key)
 	}
 }
@@ -233,6 +246,10 @@ func (c *controller) Enqueue(namespace, name string) {
 	if c.workqueue == nil {
 		c.startKeys = append(c.startKeys, startKey{key: key})
 	} else {
+		if namespace == "" && strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
+			clusterEnqueueCount += 1
+			logrus.Infof("AddRateLimited call for %s because Enqueue(), counter %v", key, clusterEnqueueCount)
+		}
 		c.workqueue.AddRateLimited(key)
 	}
 }

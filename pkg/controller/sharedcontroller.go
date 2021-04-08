@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	cachetools "k8s.io/client-go/tools/cache"
+	"github.com/sirupsen/logrus"
 )
 
 type SharedControllerHandler interface {
@@ -52,6 +54,9 @@ func (s *sharedController) EnqueueAfter(namespace, name string, delay time.Durat
 }
 
 func (s *sharedController) EnqueueKey(key string) {
+	if strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
+		logrus.Infof("EnqueueKey call for [%s] from sharedController", key)
+	}
 	s.initController().EnqueueKey(key)
 }
 
@@ -115,6 +120,9 @@ func (s *sharedController) RegisterHandler(ctx context.Context, name string, han
 		defer s.startLock.Unlock()
 		if s.started {
 			for _, key := range c.Informer().GetStore().ListKeys() {
+				if strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
+					//logrus.Infof("EnqueueKey call for [%s] from RegisterHandler", key)
+				}
 				c.EnqueueKey(key)
 			}
 		}
