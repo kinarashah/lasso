@@ -176,7 +176,7 @@ func (c *controller) processNextWorkItem() bool {
 	}
 
 	if key, ok := obj.(string); ok {
-		if strings.HasPrefix(key, "c-") {
+		if strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
 			logrus.Infof("ProcessSingleItem cluster key %s", key)
 		}
 	}
@@ -205,7 +205,7 @@ func (c *controller) processSingleItem(obj interface{}) error {
 		return nil
 	}
 	if err := c.syncHandler(key); err != nil {
-		if strings.HasPrefix(key, "c-") {
+		if strings.HasPrefix(key, "c-") && !strings.Contains(key, "/"){
 			logrus.Infof("AddRateLimited call for %s because of err [%v]", key, err)
 		}
 		c.workqueue.AddRateLimited(key)
@@ -235,10 +235,10 @@ func (c *controller) EnqueueKey(key string) {
 	if c.workqueue == nil {
 		c.startKeys = append(c.startKeys, startKey{key: key})
 	} else {
-		if strings.HasPrefix(key, "c-") {
+		if strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
 			logrus.Infof("AddRateLimited call for %s because EnqueueKey", key)
 		}
-		c.workqueue.AddRateLimited(key)
+		c.workqueue.Add(key)
 	}
 }
 
