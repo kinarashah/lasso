@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rancher/lasso/pkg/log"
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -59,6 +60,7 @@ type Options struct {
 }
 
 func New(name string, informer cache.SharedIndexInformer, startCache func(context.Context) error, handler Handler, opts *Options) Controller {
+	logrus.Tracef("NewLassoController: name: %s", name)
 	opts = applyDefaultOptions(opts)
 
 	controller := &controller{
@@ -87,6 +89,7 @@ func applyDefaultOptions(opts *Options) *Options {
 	}
 	if newOpts.RateLimiter == nil {
 		newOpts.RateLimiter = workqueue.DefaultControllerRateLimiter()
+		logrus.Trace("NewLassoController initializing DefaultOptions")
 	}
 	return &newOpts
 }
@@ -190,6 +193,9 @@ func (c *controller) processSingleItem(obj interface{}) error {
 		return nil
 	}
 	if err := c.syncHandler(key); err != nil {
+		if strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
+			logrus.Infof("AddRateLimited call for %s because of err [%v]", key, err)
+		}
 		c.workqueue.AddRateLimited(key)
 		return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
 	}
@@ -217,6 +223,9 @@ func (c *controller) EnqueueKey(key string) {
 	if c.workqueue == nil {
 		c.startKeys = append(c.startKeys, startKey{key: key})
 	} else {
+		if strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
+			logrus.Infof("AddRateLimited call for %s because EnqueueKey", key)
+		}
 		c.workqueue.Add(key)
 	}
 }
@@ -230,6 +239,9 @@ func (c *controller) Enqueue(namespace, name string) {
 	if c.workqueue == nil {
 		c.startKeys = append(c.startKeys, startKey{key: key})
 	} else {
+		if namespace == "" && strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
+			logrus.Infof("AddRateLimited call for %s because Enqueue()", key)
+		}
 		c.workqueue.AddRateLimited(key)
 	}
 }
