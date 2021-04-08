@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"golang.org/x/time/rate"
 	"strings"
 	"sync"
 	"time"
@@ -60,6 +61,7 @@ type Options struct {
 }
 
 func New(name string, informer cache.SharedIndexInformer, startCache func(context.Context) error, handler Handler, opts *Options) Controller {
+	logrus.Infof("NewLassoController: name: %s", name)
 	opts = applyDefaultOptions(opts)
 
 	controller := &controller{
@@ -87,7 +89,13 @@ func applyDefaultOptions(opts *Options) *Options {
 		newOpts = *opts
 	}
 	if newOpts.RateLimiter == nil {
-		newOpts.RateLimiter = workqueue.DefaultControllerRateLimiter()
+		//workqueue.DefaultControllerRateLimiter()
+		newOpts.RateLimiter = workqueue.NewMaxOfRateLimiter(
+			workqueue.NewItemExponentialFailureRateLimiter(5*time.Millisecond, 1000*time.Second),
+			// 10 qps, 100 bucket size.  This is only for retry speed and its only the overall factor (not per item)
+			&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(20), 200)},
+		)
+		logrus.Infof("NewLassoController initializing DefaultOptions")
 	}
 	return &newOpts
 }
