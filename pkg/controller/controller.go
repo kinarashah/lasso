@@ -19,6 +19,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+var clusterEnqueueCount = 0
+
 type Handler interface {
 	OnChange(key string, obj runtime.Object) error
 }
@@ -246,7 +248,8 @@ func (c *controller) Enqueue(namespace, name string) {
 		c.startKeys = append(c.startKeys, startKey{key: key})
 	} else {
 		if namespace == "" && strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
-			logrus.Infof("AddRateLimited call for %s because Enqueue()", key)
+			clusterEnqueueCount += 1
+			logrus.Infof("AddRateLimited call for %s because Enqueue(), counter %v", key, clusterEnqueueCount)
 		}
 		c.workqueue.AddRateLimited(key)
 	}
