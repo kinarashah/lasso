@@ -90,6 +90,8 @@ func applyDefaultOptions(opts *Options) *Options {
 	if newOpts.RateLimiter == nil {
 		newOpts.RateLimiter = workqueue.DefaultControllerRateLimiter()
 		logrus.Trace("NewLassoController initializing DefaultOptions")
+	} else {
+		log.Infof("***Custom rate limiter used")
 	}
 	return &newOpts
 }
