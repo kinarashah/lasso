@@ -121,7 +121,7 @@ func (s *sharedController) RegisterHandler(ctx context.Context, name string, han
 		if s.started {
 			for _, key := range c.Informer().GetStore().ListKeys() {
 				if strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
-					logrus.Infof("EnqueueKey call for [%s] from RegisterHandler", key)
+					//logrus.Infof("EnqueueKey call for [%s] from RegisterHandler", key)
 				}
 				c.EnqueueKey(key)
 			}

@@ -228,7 +228,7 @@ func (c *controller) EnqueueKey(key string) {
 		c.startKeys = append(c.startKeys, startKey{key: key})
 	} else {
 		if strings.HasPrefix(key, "c-") && !strings.Contains(key, "/") {
-			logrus.Infof("AddRateLimited call for %s because EnqueueKey", key)
+			//logrus.Infof("AddRateLimited call for %s because EnqueueKey", key)
 		}
 		c.workqueue.Add(key)
 	}
